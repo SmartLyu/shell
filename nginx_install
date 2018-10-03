@@ -1,0 +1,90 @@
+#!/bin/bash
+
+# --with-http_ssl_module  --with-stream  --with-http_stub_status_module  .....
+w=''
+for i in $*
+do
+  echo $i | grep '\-\-.*' &>/dev/null
+  if [ $? -eq 0 ];then
+    w=$w' '$i
+  else
+    [ -f $i ] && a=$i && continue
+    nginx_path=$i
+    echo $nginx_path | grep '^/' &>/dev/null
+    [ $? -ne 0 ] && nginx_path=$PWD/$nginx_path
+  fi
+done
+echo 'you need this mode :  '$w
+nginx_path=${nginx_path:-/usr/local/nginx}
+
+# this is the file's document
+echo $0 | grep '/' &>/dev/null
+if [ $? != 0 ];then
+  path=$PWD
+else
+  path=${0%/*}		
+  echo $path | grep '^/' &>/dev/null
+  if [ $? -ne 0 ];then
+    [ $path == '.' ] && path=$PWD || path=$PWD/$path
+  fi
+fi
+
+jindu(){
+  while :
+  do
+    echo -n '#'
+    sleep 0.25
+  done
+}
+
+# check yum
+[ $(yum repolist | awk '/repolist/{print$2}' | sed 's/,//') -eq 0 ] && echo 'your yum has problem' && exit 2
+jindu &
+for i in gcc make openssl-devel pcre-devel
+do
+  rpm -q $i &>/dev/null
+  if [ $? -ne 0 ];then
+    yum install -y $i &>/dev/null
+  fi
+done
+echo -e "\n"'gcc,make,openssl-devel,pcre-devel is ready'
+
+# check nginx.tar
+file=${a:-$path/nginx-1.12.2.tar.gz}
+if [ -f $file ];then
+  [ ${file##*.} == 'zip' ]  && unzip $file -d $path || tar -xf $file -C $path
+else
+  kill $! &>/dev/null
+  echo -e \n'Cannot found '$file" you can try to use \'nginx_install file\' "
+  exit 3
+fi
+echo -e \n'nginx is making install..'
+useradd -s /sbin/nologin nginx
+cd ${file%.*.*}
+./configure --prefix=$nginx_path --user=nginx --group=nginx $w &>/dev/null
+[ $? -ne 0 ] && echo 'configure has problem' && kill $! && exit 4
+make &>/dev/null
+[ $? -ne 0 ] && echo 'make has problem' && kill $! && exit 5
+if [ -e $nginx_path/sbin/nginx ];then
+  rm -f $nginx_path/sbin/nginx
+  cp objs/nginx $nginx_path/sbin/
+else
+  make install &>/dev/null
+fi
+cd ..
+rm -rf ${file%.*.*}
+cat $nginx_path/conf/nginx.conf | grep server_tokens
+[ $? -eq 0 ] || sed -i  '/http {/a\    server_tokens off;' $nginx_path/conf/nginx.conf
+sed -i '/SERVER_SOFTWARE/s/\/\$nginx_version//' $nginx_path/conf/fastcgi.conf
+
+# check nginx
+[ ! -e $nginx_path/sbin/nginx ] && kill $! &>/dev/null  && echo -e "\nnginx has problem" && exit 6
+kill $! &>/dev/null
+echo -e "\nnginx is ready"
+rm -f /usr/local/bin/nginx_server
+sed -i '2cpath='$nginx_path $path/nginx_server
+sed -i '/Watch_Root=/cWatch_Root='$nginx_path/ $path/nginx_rsync
+sed -i '/path=/cpath='$nginx_path $path/nginx_upload_works
+ln -s $path/nginx_server /usr/local/bin/ &>/dev/null
+killall nginx
+exit 0
