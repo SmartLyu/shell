@@ -1,0 +1,46 @@
+#!/bin/bash
+# email: luyu151111@163.com
+
+jindu(){
+  while :
+  do
+    echo -n '#'
+    sleep 0.25
+  done
+}
+ 
+
+sleep_time=0.1s
+print_time=0.15s
+go_start(){
+dead=0                         
+while [ $dead -le $1 ]
+do
+  echo -e '-'"\b\c"
+  sleep ${sleep_time}
+  echo -e '/'"\b\c"
+  sleep ${sleep_time}
+  echo -e '|'"\b\c"
+  sleep ${sleep_time}
+  echo -e '\\'"\b\c"
+  sleep ${sleep_time}
+  dead=$[$dead+1]
+done
+echo -e ' '"\b\c"
+}
+ 
+go_start 10&
+
+for print_key in 欢 迎 实 用 志 远 设 计 的 Shell 界 面 美 观
+do
+    echo -n $print_key
+    sleep $print_time
+done
+echo ''
+
+kill $!
+
+jindu &        # 开启进度条
+sleep 5s
+kill $!        # 关闭进度条
+wait

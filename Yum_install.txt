@@ -1,0 +1,15 @@
+#!/bin/bash
+# email: luyu151111@163.com
+
+[ $# -eq 0 ] && echo 'please tell me what do you want to yum install , you can try :   yum_install rpm ' && exit 3
+[ $(yum repolist | awk '/repolist/{print$2}' | sed 's/,//') -eq 0 ] && echo 'your yum has problem' && exit 2
+ 
+for i in $*
+do
+  rpm -qa | grep ${i%%.*} &>/dev/null
+  [ $? -eq 0 ] || yum install -y $i&>/dev/null
+  [ $? -ne 0 ] && echo 'your yum cannot install '$i && yum_right=3
+done
+[ $yum_right ] && exit 3
+echo  $*' is ready'
+

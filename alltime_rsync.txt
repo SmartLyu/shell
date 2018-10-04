@@ -1,0 +1,30 @@
+#!/bin/bash
+# email: luyu151111@163.com
+
+[ $# -eq 0 ] && echo 'please tell me which ip do you want to rsync' && exit 3
+ip=$1
+ping -c 2 $ip &>/dev/null
+[ $? -ne 0 ] && echo 'this ip '$1' cannot be found' && exit 4
+Watch_Root=/mnt
+if [ ! -f ~/.ssh/id_rsa ];then
+
+expect << EOF
+spawn ssh-keygen
+expect "key"  {send "\n"}
+expect "passphrase" {send "\n"}
+expect "passphrase" {send "\n"}
+expect "passphrase" {send "\n"}
+expect "key" {send "\n"}
+EOF
+
+  echo 'you need a key to ssh, now I am making'
+fi
+kill $!
+ssh-copy-id -f $ip &>/dev/null
+Same_Root=root@$ip:$Watch_Root
+rsync --delete -az $Watch_Root $Same_Root
+while inotifywait -rqq $Watch_Root                                              
+do
+  rsync --delete -az $Watch_Root $Same_Root
+done &
+echo -e \n 'Start rsync is uccssful'

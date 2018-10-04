@@ -1,0 +1,13 @@
+#!/bin/bash
+# email: luyu151111@163.com
+
+path=${0%/*}
+echo $path | grep '^/' &>/dev/null
+if [ $? -ne 0 ];then
+  path=$(echo $path | sed -r 's/.\/*//')
+  path=$PWD/$path
+fi
+path=$(echo $path | sed -r 's/\/{2,}/\//')
+ 
+echo '脚本所在位置为'$path
+
