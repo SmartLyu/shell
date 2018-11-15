@@ -1,0 +1,39 @@
+#!/bin/bash
+NET=192.168.1.
+DISK=${3:-15}
+if [ $# -eq 0 ];then
+  echo 'Error : you can try clone [number] [0|1](0-poweroff,1-reboot) [size(G)]'
+  exit 1
+else
+  [ $1 -gt 0 &>/dev/null ]  && [ $1 -lt 100 ] && NUM=$1 || (echo 'Error : you can try clone [0<number<100] [0|1](0-poweroff,1-reboot) [size(G)]' ; exit 2)
+fi
+
+cd /var/lib/libvirt/images/
+[ -f /var/lib/libvirt/images/node$NUM.img ] && echo 'this has been define' && ls node* && exit 3
+
+qemu-img create -b node.qcow2 -f qcow2 node$NUM.img ${DISK}G
+cd /etc/libvirt/qemu/
+sed 's/node/node'$NUM'/' xml.example > yzy_node$NUM.xml
+virsh define /etc/libvirt/qemu/yzy_node$NUM.xml 
+virsh start yzy_node$NUM
+
+while [ -e $IP ]
+do
+IP=`arp -a | grep $(virsh dumpxml yzy_node$NUM | grep 'mac add' | awk -F\' '{print $2}') | awk -F\( '{print $2}' | awk -F\) '{print $1}'`
+sleep 1
+done
+echo $IP
+
+while :
+do
+  ping $IP -c 2
+  [ $? -eq 0 ] && break
+  sleep 1
+done
+
+scp -o StrictHostKeyChecking=no /var/lib/libvirt/images/First_set.yzy $IP:/root/
+ssh -o StrictHostKeyChecking=no $IP "bash /root/First_set.yzy $NUM"
+[ $2 == 0 &> /dev/null ] && do=poweroff || do=reboot
+ssh -o StrictHostKeyChecking=no $IP "$do"
+
+echo -e "\033[32m$NET$NUM is OK\033[0m"
